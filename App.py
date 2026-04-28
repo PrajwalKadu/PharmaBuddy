@@ -1,152 +1,173 @@
 import streamlit as st
 import pandas as pd
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="PharmaBuddy", page_icon="💊", layout="centered")
+# --- 1. PAGE CONFIGURATION ---
+st.set_page_config(
+    page_title="PharmaBuddy",
+    page_icon="💊",
+    layout="centered"
+)
 
-# --- ADVANCED UX STYLING ---
+# --- 2. PROFESSIONAL UI STYLING ---
 st.markdown("""
     <style>
-    .stApp { background-color: #f4f7f6; }
+    .stApp { background-color: #f8fafc; }
     
     /* Comparison Card Styling */
     .compare-card {
-        background-color: white;
-        padding: 20px;
+        background-color: #ffffff;
+        padding: 18px;
         border-radius: 12px;
-        border: 1px solid #e0e0e0;
+        border-left: 6px solid #10b981;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         margin-bottom: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .brand-text { color: #1e3a8a; font-size: 18px; font-weight: bold; }
-    .generic-text { color: #059669; font-size: 16px; font-weight: 600; }
-    .price-box { font-size: 20px; font-weight: bold; color: #111827; }
-    .savings-badge {
+    .brand-name { color: #1e40af; font-size: 18px; font-weight: 800; margin-bottom: 2px; }
+    .generic-name { color: #059669; font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+    .price-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .price-value { font-size: 20px; font-weight: 700; color: #1e293b; }
+    .savings-tag {
         background-color: #dcfce7;
-        color: #166534;
+        color: #15803d;
         padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: bold;
+        border-radius: 9999px;
+        font-weight: 700;
         font-size: 14px;
     }
-    .vs-text { font-style: italic; color: #6b7280; font-size: 14px; margin: 0 10px; }
     
-    /* Category Title */
-    .cat-title {
+    /* Headers */
+    .section-title {
         font-size: 22px;
         font-weight: 800;
-        color: #374151;
-        margin: 30px 0 15px 0;
-        border-left: 5px solid #1e3a8a;
-        padding-left: 15px;
+        color: #0f172a;
+        margin-top: 25px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 8px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DATA ENGINE (Fault Tolerant) ---
+# --- 3. DATA LOADING (ROBUST ETL LOGIC) ---
 @st.cache_data
 def load_data():
     try:
+        # Fixed encoding and bad line handling for mobile-saved CSVs
         df = pd.read_csv(
             "drugs_data.csv", 
             encoding='latin1', 
             on_bad_lines='skip', 
             engine='python',
-            sep=None 
+            sep=None # Detects comma or semicolon automatically
         )
+        # Clean column headers
         df.columns = [c.strip() for c in df.columns]
+        
+        # Ensure prices and savings are treated as numbers
         for col in ['Generic Price (Rs)', 'Brand Price (Rs)', 'Savings (%)']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         return df
     except Exception as e:
-        st.error(f"Data Error: {e}")
+        st.error(f"⚠️ Error reading CSV: {e}")
         return None
 
+# --- 4. HELPER FUNCTION: RENDER COMPARISON CARD ---
+def render_drug_card(row):
+    """Generates the comparison UI for a single drug row"""
+    st.markdown(f"""
+        <div class="compare-card">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <div class="brand-name">{row['Brand Name']}</div>
+                    <div class="generic-name">Salt: {row['Generic Name']}</div>
+                </div>
+                <div class="savings-tag">Save {row['Savings (%)']}%</div>
+            </div>
+            
+            <div style="display: flex; gap: 30px; margin: 15px 0;">
+                <div>
+                    <div class="price-label">Brand Price</div>
+                    <div class="price-value">₹{row['Brand Price (Rs)']}</div>
+                </div>
+                <div style="border-left: 1px solid #e2e8f0; height: 40px;"></div>
+                <div>
+                    <div class="price-label">Generic Price</div>
+                    <div class="price-value" style="color: #10b981;">₹{row['Generic Price (Rs)']}</div>
+                </div>
+            </div>
+            
+            <div style="font-size: 14px; line-height: 1.6; color: #475569; border-top: 1px solid #f1f5f9; pt: 10px;">
+                <b>Indication:</b> {row['Indication']}<br>
+                <b>Dosage Form:</b> {row['Dosage Form']}<br>
+                <span style="color: #b91c1c;"><b>Adverse Effects:</b> {row['Adverse Effects']}</span><br>
+                <span style="color: #1e293b;"><b>Interactions:</b> {row['Drug Interaction']}</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- 5. MAIN APP LOGIC ---
 df = load_data()
 
-# --- APP NAVIGATION ---
 if df is not None:
-    if 'view' not in st.session_state:
-        st.session_state.view = "home"
-        st.session_state.item = None
+    st.title("💊 PharmaBuddy")
+    st.write("Compare brand medicines with generic equivalents to save money.")
 
-    # --- DETAIL VIEW ---
-    if st.session_state.view == "details":
-        row = st.session_state.item
-        if st.button("⬅ Back to Comparisons"):
-            st.session_state.view = "home"
-            st.rerun()
-            
-        st.title(row['Brand Name'])
-        st.subheader(f"Generic: {row['Generic Name']}")
-        
-        st.divider()
-        
-        # Highlighting the motive: Price Difference
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(f"### Brand\n**{row['Brand Name']}**\n## ₹{row['Brand Price (Rs)']}")
-            st.caption(f"Manufacturer: {row['Company']}")
-        with c2:
-            st.markdown(f"### Generic Equivalent\n**{row['Generic Name']}**\n## ₹{row['Generic Price (Rs)']}")
-            st.success(f"**Save {row['Savings (%)']}%**")
+    # A. Global Search
+    search_query = st.text_input("🔍 Search Brand, Salt, or Indication", placeholder="e.g. Paracetamol...")
 
-        st.markdown("### 📋 Clinical Details")
-        st.info(f"**Dosage Form:** {row['Dosage Form']}\n\n**Indication:** {row['Indication']}")
-        
-        with st.expander("Safety Information"):
-            st.warning(f"**Adverse Effects:** {row['Adverse_Effects'] if 'Adverse_Effects' in row else row.get('Adverse Effects', 'N/A')}")
-            st.error(f"**Drug Interactions:** {row['Drug Interaction']}")
+    # B. View Mode Selector
+    view_option = st.selectbox(
+        "📂 Browse Directory",
+        ["Search Results", "All Categories", "All Brands"]
+    )
 
-    # --- HOME VIEW (THE COMPARISON LIST) ---
+    st.divider()
+
+    # --- LOGIC: ALL CATEGORIES ---
+    if view_option == "All Categories":
+        st.markdown("<div class='section-title'>Browse by Category</div>", unsafe_allow_html=True)
+        categories = sorted(df['Category'].dropna().unique().tolist())
+        
+        for cat in categories:
+            with st.expander(f"📁 {cat}"):
+                cat_data = df[df['Category'] == cat]
+                for _, row in cat_data.iterrows():
+                    render_drug_card(row)
+
+    # --- LOGIC: ALL BRANDS ---
+    elif view_option == "All Brands":
+        st.markdown("<div class='section-title'>Browse by Brand Name</div>", unsafe_allow_html=True)
+        brands = sorted(df['Brand Name'].dropna().unique().tolist())
+        
+        for brand in brands:
+            with st.expander(f"💊 {brand}"):
+                brand_data = df[df['Brand Name'] == brand]
+                for _, row in brand_data.iterrows():
+                    render_drug_card(row)
+
+    # --- LOGIC: SEARCH RESULTS ---
     else:
-        st.title("💊 PharmaBuddy")
-        st.markdown("Compare **Brand vs Generic** prices instantly.")
-
-        search = st.text_input("", placeholder="Search medicine, category or salts...")
-
-        # Filter logic
-        filtered = df
-        if search:
-            mask = (df['Brand Name'].str.contains(search, case=False, na=False) | 
-                    df['Generic Name'].str.contains(search, case=False, na=False) |
-                    df['Category'].str.contains(search, case=False, na=False))
-            filtered = df[mask]
-
-        # Group by Category
-        if not filtered.empty:
-            for cat in filtered['Category'].unique():
-                st.markdown(f"<div class='cat-title'>{cat}</div>", unsafe_allow_html=True)
-                cat_df = filtered[filtered['Category'] == cat]
-                
-                for idx, row in cat_df.iterrows():
-                    # THE UX CORE: Direct comparison card
-                    with st.container():
-                        st.markdown(f"""
-                        <div class="compare-card">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <span class="brand-text">{row['Brand Name']}</span>
-                                    <span class="vs-text">vs</span>
-                                    <span class="generic-text">{row['Generic Name']}</span>
-                                </div>
-                                <span class="savings-badge">Save {row['Savings (%)']}%</span>
-                            </div>
-                            <div style="margin-top: 10px; display: flex; gap: 20px;">
-                                <div><small>Brand Price</small><br><span class="price-box">₹{row['Brand Price (Rs)']}</span></div>
-                                <div><small>Generic Price</small><br><span class="price-box" style="color: #059669;">₹{row['Generic Price (Rs)']}</span></div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Small transparent button to go to details
-                        if st.button(f"View Full Details for {row['Brand Name']}", key=f"btn_{idx}"):
-                            st.session_state.view = "details"
-                            st.session_state.item = row
-                            st.rerun()
+        if search_query:
+            mask = (
+                df['Brand Name'].astype(str).str.contains(search_query, case=False, na=False) |
+                df['Generic Name'].astype(str).str.contains(search_query, case=False, na=False) |
+                df['Indication'].astype(str).str.contains(search_query, case=False, na=False)
+            )
+            results = df[mask]
+            
+            if not results.empty:
+                st.success(f"Showing {len(results)} results for '{search_query}'")
+                for _, row in results.iterrows():
+                    render_drug_card(row)
+            else:
+                st.warning("No medicines found. Try a different keyword.")
         else:
-            st.info("No medicines found.")
+            st.info("Start typing in the search box or select a browse mode from the dropdown.")
 
 else:
-    st.error("Please ensure drugs_data.csv is uploaded.")
+    st.error("Missing Data: Please ensure 'drugs_data.csv' is uploaded to your GitHub repository.")
+
+# Footer
+st.markdown("---")
+st.caption("Developed by Prajwal Kadu | PharmaBuddy v3.0")
