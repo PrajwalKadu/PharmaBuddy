@@ -4,7 +4,7 @@ import pandas as pd
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="PharmaBuddy", page_icon="💊", layout="centered")
 
-# --- ADVANCED UX STYLING ---
+# --- ADVANCED UX STYLING (Kept exactly as your original) ---
 st.markdown("""
     <style>
     .stApp { background-color: #f4f7f6; }
@@ -43,7 +43,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- DATA ENGINE (Fault Tolerant) ---
+# --- DATA ENGINE (Kept exactly as your original) ---
 @st.cache_data
 def load_data():
     try:
@@ -71,7 +71,7 @@ if df is not None:
         st.session_state.view = "home"
         st.session_state.item = None
 
-    # --- DETAIL VIEW ---
+    # --- DETAIL VIEW (Kept exactly as your original) ---
     if st.session_state.view == "details":
         row = st.session_state.item
         if st.button("⬅ Back to Comparisons"):
@@ -83,7 +83,6 @@ if df is not None:
         
         st.divider()
         
-        # Highlighting the motive: Price Difference
         c1, c2 = st.columns(2)
         with c1:
             st.markdown(f"### Brand\n**{row['Brand Name']}**\n## ₹{row['Brand Price (Rs)']}")
@@ -97,31 +96,49 @@ if df is not None:
         
         with st.expander("Safety Information"):
             st.warning(f"**Adverse Effects:** {row['Adverse_Effects'] if 'Adverse_Effects' in row else row.get('Adverse Effects', 'N/A')}")
-            st.error(f"**Drug Interactions:** {row['Drug Interaction']}")
+            st.error(f"**Drug Interaction:** {row['Drug Interaction']}")
 
-    # --- HOME VIEW (THE COMPARISON LIST) ---
+    # --- HOME VIEW (WITH NEW DROPDOWN LOGIC) ---
     else:
         st.title("💊 PharmaBuddy")
         st.markdown("Compare **Brand vs Generic** prices instantly.")
 
-        search = st.text_input("", placeholder="Search medicine, category or salts...")
+        # 1. New Dropdown Feature
+        browse_option = st.selectbox(
+            "Browse Directory By:",
+            ["Default / Search", "All Categories", "All Brands"]
+        )
 
-        # Filter logic
+        # 2. Filtering Logic based on dropdown
         filtered = df
-        if search:
-            mask = (df['Brand Name'].str.contains(search, case=False, na=False) | 
-                    df['Generic Name'].str.contains(search, case=False, na=False) |
-                    df['Category'].str.contains(search, case=False, na=False))
-            filtered = df[mask]
+        
+        if browse_option == "All Categories":
+            unique_cats = sorted(df['Category'].unique())
+            selected_cat = st.selectbox("Select Category", unique_cats)
+            filtered = df[df['Category'] == selected_cat]
+        
+        elif browse_option == "All Brands":
+            unique_brands = sorted(df['Brand Name'].unique())
+            selected_brand = st.selectbox("Select Brand", unique_brands)
+            filtered = df[df['Brand Name'] == selected_brand]
+        
+        else:
+            # DEFAULT MODE: As per your previous code
+            search = st.text_input("", placeholder="Search medicine, category or salts...")
+            if search:
+                mask = (df['Brand Name'].str.contains(search, case=False, na=False) | 
+                        df['Generic Name'].str.contains(search, case=False, na=False) |
+                        df['Category'].str.contains(search, case=False, na=False))
+                filtered = df[mask]
 
-        # Group by Category
+        # 3. Group by Category Display (Kept exactly as your original)
         if not filtered.empty:
+            # We group by Category even in search/dropdown modes for consistency
             for cat in filtered['Category'].unique():
                 st.markdown(f"<div class='cat-title'>{cat}</div>", unsafe_allow_html=True)
                 cat_df = filtered[filtered['Category'] == cat]
                 
                 for idx, row in cat_df.iterrows():
-                    # THE UX CORE: Direct comparison card
                     with st.container():
                         st.markdown(f"""
                         <div class="compare-card">
@@ -140,7 +157,6 @@ if df is not None:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        # Small transparent button to go to details
                         if st.button(f"View Full Details for {row['Brand Name']}", key=f"btn_{idx}"):
                             st.session_state.view = "details"
                             st.session_state.item = row
