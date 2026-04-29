@@ -1,197 +1,169 @@
 import streamlit as st
 import pandas as pd
 
-# --- 1. PAGE CONFIG ---
+# --- PAGE CONFIG ---
 st.set_page_config(page_title="PharmaBuddy", page_icon="💊", layout="centered")
 
-# --- 2. ADVANCED CSS (Replicating the Image UI) ---
+# --- ADVANCED UX STYLING (Kept exactly as your original) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #f8fbff; }
+    .stApp { background-color: #f4f7f6; }
     
-    /* Search Bar Styling */
-    .stTextInput input {
-        border-radius: 12px;
-        border: 1px solid #d1d5db;
-        padding: 12px;
-    }
-
-    /* Category Pill/Chip Styling */
-    .chip-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin: 15px 0;
-    }
-    .stButton > button {
-        border-radius: 25px;
-        border: 1px solid #e5e7eb;
+    /* Comparison Card Styling */
+    .compare-card {
         background-color: white;
-        color: #4b5563;
-        font-weight: 500;
-        padding: 4px 16px;
-        transition: 0.2s;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    .stButton > button:hover {
-        border-color: #3b82f6;
-        color: #3b82f6;
-    }
-
-    /* Drug Card (Image UI Match) */
-    .drug-card {
-        background: white;
-        border-radius: 20px;
-        padding: 24px;
-        margin-bottom: 16px;
-        border-left: 6px solid #f97316;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    }
+    .brand-text { color: #1e3a8a; font-size: 18px; font-weight: bold; }
+    .generic-text { color: #059669; font-size: 16px; font-weight: 600; }
+    .price-box { font-size: 20px; font-weight: bold; color: #111827; }
     .savings-badge {
-        background-color: #f97316;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 10px;
+        background-color: #dcfce7;
+        color: #166534;
+        padding: 4px 12px;
+        border-radius: 20px;
         font-weight: bold;
         font-size: 14px;
-        float: right;
-        text-align: center;
     }
-    .drug-title { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
-    .drug-subtitle { color: #64748b; font-size: 15px; margin-bottom: 20px; }
+    .vs-text { font-style: italic; color: #6b7280; font-size: 14px; margin: 0 10px; }
     
-    .price-grid { display: flex; gap: 12px; margin-bottom: 20px; }
-    .price-box {
-        flex: 1;
-        padding: 12px;
-        border-radius: 12px;
-        text-align: left;
+    /* Category Title */
+    .cat-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #374151;
+        margin: 30px 0 15px 0;
+        border-left: 5px solid #1e3a8a;
+        padding-left: 15px;
     }
-    .gen-bg { background-color: #f0fdf4; }
-    .brd-bg { background-color: #fef2f2; }
-    .price-label { font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .price-val { font-size: 20px; font-weight: 800; }
-
-    .tag-container { display: flex; flex-wrap: wrap; gap: 6px; }
-    .tag {
-        background-color: #fff7ed;
-        color: #c2410c;
-        border: 1px solid #ffedd5;
-        padding: 3px 12px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .mfg-text { color: #94a3b8; font-size: 12px; margin-top: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. DATA LOADING ---
+# --- DATA ENGINE (Kept exactly as your original) ---
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("drugs_data.csv", encoding='latin1', on_bad_lines='skip', engine='python', sep=None)
+        df = pd.read_csv(
+            "drugs_data.csv", 
+            encoding='latin1', 
+            on_bad_lines='skip', 
+            engine='python',
+            sep=None 
+        )
         df.columns = [c.strip() for c in df.columns]
         for col in ['Generic Price (Rs)', 'Brand Price (Rs)', 'Savings (%)']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         return df
-    except: return None
+    except Exception as e:
+        st.error(f"Data Error: {e}")
+        return None
 
-# --- 4. RENDERER ---
-def render_card(row):
-    st.markdown(f"""
-    <div class="drug-card">
-        <div class="savings-badge">↓{row['Savings (%)']}%<br><small style="font-weight:normal; font-size:9px;">savings</small></div>
-        <div class="drug-title">🦠 {row['Brand Name']}</div>
-        <div class="drug-subtitle">{row['Generic Name']}</div>
-        
-        <div class="price-grid">
-            <div class="price-box gen-bg">
-                <div class="price-label" style="color:#16a34a;">GENERIC</div>
-                <div class="price-val" style="color:#16a34a;">₹{row['Generic Price (Rs)']}</div>
-            </div>
-            <div class="price-box brd-bg">
-                <div class="price-label" style="color:#dc2626;">BRAND</div>
-                <div class="price-val" style="color:#dc2626;">₹{row['Brand Price (Rs)']}</div>
-            </div>
-        </div>
-        
-        <div class="tag-container">
-            <span class="tag">{row['Category']}</span>
-            <span class="tag">💊 {row['Dosage Form']}</span>
-            <span class="tag">{row['Indication']}</span>
-        </div>
-        <div class="mfg-text">🏢 {row['Company']}</div>
-        <hr style="margin: 15px 0; opacity: 0.1;">
-        <div style="font-size:13px; color:#475569;">
-            <b>Adverse Effects:</b> {row['Adverse Effects']}<br>
-            <b>Interaction:</b> {row['Drug Interaction']}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- 5. MAIN LOGIC ---
 df = load_data()
 
+# --- APP NAVIGATION ---
 if df is not None:
-    # Header Section
-    st.title("PharmaBuddy")
-    
-    # 1. FIXED SEARCH
-    search = st.text_input("", placeholder="🔍 Search by brand name, generic, company...")
+    if 'view' not in st.session_state:
+        st.session_state.view = "home"
+        st.session_state.item = None
 
-    # 2. DROPDOWN (Category/Brand Browser)
-    browse_mode = st.selectbox(
-        "Browse Directory By:",
-        ["All Medicines", "All Categories", "All Brands"]
-    )
+    # --- DETAIL VIEW (Kept exactly as your original) ---
+    if st.session_state.view == "details":
+        row = st.session_state.item
+        if st.button("⬅ Back to Comparisons"):
+            st.session_state.view = "home"
+            st.rerun()
+            
+        st.title(row['Brand Name'])
+        st.subheader(f"Generic: {row['Generic Name']}")
+        
+        st.divider()
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f"### Brand\n**{row['Brand Name']}**\n## ₹{row['Brand Price (Rs)']}")
+            st.caption(f"Manufacturer: {row['Company']}")
+        with c2:
+            st.markdown(f"### Generic Equivalent\n**{row['Generic Name']}**\n## ₹{row['Generic Price (Rs)']}")
+            st.success(f"**Save {row['Savings (%)']}%**")
 
-    # 3. CHIP FILTERS (From Image 1)
-    # Using session state to track chip selection
-    if 'active_chip' not in st.session_state: st.session_state.active_chip = "All"
-    
-    unique_cats = ["All"] + sorted(df['Category'].unique().tolist())
-    
-    # Render chips in columns
-    st.write("---")
-    chip_cols = st.columns(4)
-    for i, cat_name in enumerate(unique_cats[:12]): # Showing first 12 for UI cleanliness
-        if chip_cols[i % 4].button(cat_name, key=f"chip_{cat_name}"):
-            st.session_state.active_chip = cat_name
+        st.markdown("### 📋 Clinical Details")
+        st.info(f"**Dosage Form:** {row['Dosage Form']}\n\n**Indication:** {row['Indication']}")
+        
+        with st.expander("Safety Information"):
+            st.warning(f"**Adverse Effects:** {row['Adverse_Effects'] if 'Adverse_Effects' in row else row.get('Adverse Effects', 'N/A')}")
+            st.error(f"**Drug Interaction:** {row['Drug Interaction']}")
 
-    # --- FILTERING LOGIC ---
-    filtered_df = df
-
-    # Filter by Browse Mode Selection
-    if browse_mode == "All Categories":
-        sel_cat = st.selectbox("Select Category", sorted(df['Category'].unique()))
-        filtered_df = df[df['Category'] == sel_cat]
-    elif browse_mode == "All Brands":
-        sel_brand = st.selectbox("Select Brand", sorted(df['Brand Name'].unique()))
-        filtered_df = df[df['Brand Name'] == sel_brand]
-    
-    # Apply Chip Filter
-    if st.session_state.active_chip != "All":
-        filtered_df = filtered_df[filtered_df['Category'] == st.session_state.active_chip]
-
-    # Apply Search (Global Search Priority)
-    if search:
-        filtered_df = filtered_df[
-            filtered_df['Brand Name'].str.contains(search, case=False, na=False) |
-            filtered_df['Generic Name'].str.contains(search, case=False, na=False) |
-            filtered_df['Category'].str.contains(search, case=False, na=False)
-        ]
-
-    # Count Text
-    st.caption(f"Showing **{len(filtered_df)}** of {len(df)} drugs")
-
-    # Display Cards
-    if not filtered_df.empty:
-        for _, row in filtered_df.iterrows():
-            render_card(row)
+    # --- HOME VIEW (WITH NEW DROPDOWN LOGIC) ---
     else:
-        st.info("No medications found matching your criteria.")
+        st.title("💊 PharmaBuddy")
+        st.markdown("Compare **Brand vs Generic** prices instantly.")
+
+        # 1. New Dropdown Feature
+        browse_option = st.selectbox(
+            "Browse Directory By:",
+            ["Default / Search", "All Categories", "All Brands"]
+        )
+
+        # 2. Filtering Logic based on dropdown
+        filtered = df
+        
+        if browse_option == "All Categories":
+            unique_cats = sorted(df['Category'].unique())
+            selected_cat = st.selectbox("Select Category", unique_cats)
+            filtered = df[df['Category'] == selected_cat]
+        
+        elif browse_option == "All Brands":
+            unique_brands = sorted(df['Brand Name'].unique())
+            selected_brand = st.selectbox("Select Brand", unique_brands)
+            filtered = df[df['Brand Name'] == selected_brand]
+        
+        else:
+            # DEFAULT MODE: As per your previous code
+            search = st.text_input("", placeholder="Search medicine, category or salts...")
+            if search:
+                mask = (df['Brand Name'].str.contains(search, case=False, na=False) | 
+                        df['Generic Name'].str.contains(search, case=False, na=False) |
+                        df['Category'].str.contains(search, case=False, na=False))
+                filtered = df[mask]
+
+        # 3. Group by Category Display (Kept exactly as your original)
+        if not filtered.empty:
+            # We group by Category even in search/dropdown modes for consistency
+            for cat in filtered['Category'].unique():
+                st.markdown(f"<div class='cat-title'>{cat}</div>", unsafe_allow_html=True)
+                cat_df = filtered[filtered['Category'] == cat]
+                
+                for idx, row in cat_df.iterrows():
+                    with st.container():
+                        st.markdown(f"""
+                        <div class="compare-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span class="brand-text">{row['Brand Name']}</span>
+                                    <span class="vs-text">vs</span>
+                                    <span class="generic-text">{row['Generic Name']}</span>
+                                </div>
+                                <span class="savings-badge">Save {row['Savings (%)']}%</span>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 20px;">
+                                <div><small>Brand Price</small><br><span class="price-box">₹{row['Brand Price (Rs)']}</span></div>
+                                <div><small>Generic Price</small><br><span class="price-box" style="color: #059669;">₹{row['Generic Price (Rs)']}</span></div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button(f"View Full Details for {row['Brand Name']}", key=f"btn_{idx}"):
+                            st.session_state.view = "details"
+                            st.session_state.item = row
+                            st.rerun()
+        else:
+            st.info("No medicines found.")
 
 else:
-    st.error("Data Load Error. Ensure 'drugs_data.csv' is on GitHub.")
+    st.error("Please ensure drugs_data.csv is uploaded.")
 
